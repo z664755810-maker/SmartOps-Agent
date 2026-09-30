@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="通过自然语言查询销售、库存、商品排行，并自动生成图表和通知记录。"
+    />
+    <title>智能运营助手 · SmartOps</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="/">
+          <span class="brand-mark">S</span>
+          <span>SmartOps<span class="brand-light"> Agent</span></span>
+        </a>
+        <div class="side-copy">
+          <p class="eyebrow">OPERATIONS COPILOT</p>
+          <h1>让业务数据<br />开口说话。</h1>
+          <p class="side-description">
+            用一句话查销售、看库存、出图表。Agent 会选择合适的工具，逐步完成任务。
+          </p>
+        </div>
+        <div class="sidebar-bottom">
+          <span class="status-dot"></span>
+          <span id="mode-label">正在连接服务…</span>
+          <span class="side-version">DEMO · v1.0</span>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">WORKSPACE / GENERAL</p>
+            <h2>运营助手</h2>
+          </div>
+          <a class="api-link" href="/docs" target="_blank" rel="noreferrer">API 文档 ↗</a>
+        </header>
+
+        <div class="chat-area" id="chat-area" aria-live="polite">
+          <div class="welcome" id="welcome">
+            <div class="welcome-icon">✳</div>
+            <p class="eyebrow">从一个问题开始</p>
+            <h3>今天想了解什么？</h3>
+            <p>试试下面的示例，或直接描述你的业务任务。</p>
+            <div class="suggestions">
+              <button type="button" data-prompt="查一下上周销售额和订单数">📈 <span>上周销售表现</span></button>
+              <button type="button" data-prompt="把上周销量最高的 3 个商品画成柱状图并发群">📊 <span>排行、画图并通知</span></button>
+              <button type="button" data-prompt="无线鼠标现在还有多少库存？">📦 <span>查询商品库存</span></button>
+            </div>
+          </div>
+          <div class="messages" id="messages"></div>
+        </div>
+
+        <form class="composer-wrap" id="chat-form">
+          <label class="sr-only" for="message-input">输入业务问题</label>
+          <textarea
+            id="message-input"
+            rows="1"
+            maxlength="2000"
+            placeholder="描述你的业务问题…"
+            required
+          ></textarea>
+          <div class="composer-footer">
+            <span>AI 可能出错，请核对关键业务数据。</span>
+            <button class="send-button" id="send-button" type="submit">
+              <span>发送</span><span aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </form>
+        <p class="disclaimer">演示数据为自动生成的模拟订单；通知功能仅写入本地日志，不会发送到外部服务。</p>
+      </section>
+    </main>
+    <script src="/static/app.js" defer></script>
+  </body>
+</html>

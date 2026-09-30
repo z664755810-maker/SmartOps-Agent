@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: smartops-agent
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    disk:
+      name: smartops-agent-data
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////app/data/agent.db
+      - key: LLM_BASE_URL
+        value: https://open.bigmodel.cn/api/paas/v4
+      - key: LLM_MODEL
+        value: glm-4-flash
+      - key: LLM_API_KEY
+        sync: false
