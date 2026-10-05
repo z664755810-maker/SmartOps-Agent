@@ -12,10 +12,10 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && mkdir -p /app/data \
     && chown -R appuser:appuser /app
 
-COPY backend/app ./app
+COPY backend/app ./backend/app
 COPY frontend ./frontend
 
 USER appuser
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT:-8000}"]
