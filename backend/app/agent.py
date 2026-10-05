@@ -68,29 +68,136 @@ def _demo_agent(
             )
             return {"error": "工具执行失败，请稍后重试。"}
 
+    wants_notification = any(
+        word in user_message for word in ("通知", "发给", "发到", "发送", "邮件", "群")
+    )
+
+    def append_notification(answer: str) -> str:
+        channel = "email" if any(word in user_message for word in ("邮件", "邮箱")) else "wechat"
+        result = call_tool(
+            "send_notification", {"message": answer[:1000], "channel": channel}
+        )
+        if "error" in result:
+            return f"{answer}\n通知记录失败：{result['error']}"
+        return f"{answer}\n已生成通知摘要并写入演示日志；当前不会实际发送到外部渠道。"
+
+    wants_low_stock = any(
+        word in effective_message
+        for word in ("低库存", "库存预警", "缺货", "补货", "库存少于", "库存低于")
+    )
+    if wants_low_stock:
+        threshold_match = re.search(r"(?:低于|少于|小于)\s*(\d{1,5})", effective_message)
+        threshold = int(threshold_match.group(1)) if threshold_match else 20
+        result = call_tool(
+            "list_products",
+            {"low_stock_below": min(max(threshold, 0), 100000), "limit": 100},
+        )
+        if "error" in result:
+            return f"库存预警查询未完成：{result['error']}", tool_calls
+        products = result["products"]
+        if not products:
+            answer = f"当前没有库存低于 {threshold} 件的商品。"
+        else:
+            answer = (
+                f"发现 {len(products)} 个商品库存低于 {threshold} 件："
+                + "；".join(
+                    f"{item['name']}（剩余 {item['stock_quantity']} 件）"
+                    for item in products
+                )
+            )
+        if wants_notification:
+            answer = append_notification(answer)
+        return answer, tool_calls
+
+    if any(word in effective_message for word in ("所有商品", "商品清单", "商品列表")):
+        result = call_tool("list_products", {"limit": 20})
+        if "error" in result:
+            return f"商品查询未完成：{result['error']}", tool_calls
+        answer = "当前商品：" + "、".join(item["name"] for item in result["products"])
+        if wants_notification:
+            answer = append_notification(answer)
+        return answer, tool_calls
+
     if any(word in effective_message for word in ("库存", "还有多少", "剩多少")):
         product_match = re.search(
             r"(?:商品)?\s*([^，。？?！!：:]{2,30}?)(?:的)?(?:库存|还有多少|剩多少)",
             effective_message,
         )
         product_name = product_match.group(1).strip() if product_match else ""
+        product_name = re.sub(
+            r"^(?:我想|请|先|再)?(?:帮我)?(?:查一下|查询|查|看看|看一下)",
+            "",
+            product_name,
+        ).strip()
         result = call_tool("query_stock", {"product_name": product_name})
         if "error" in result:
             return f"查询库存未完成：{result['error']}", tool_calls
-        return f"{result['product_name']}当前库存为 {result['stock_quantity']} 件。", tool_calls
+        answer = f"{result['product_name']}当前库存为 {result['stock_quantity']} 件。"
+        if wants_notification:
+            answer = append_notification(answer)
+        return answer, tool_calls
 
     wants_top = any(
         word in effective_message for word in ("热销", "畅销", "排行", "卖得最好", "销量最高", "top")
     )
     wants_chart = _is_chart_request(user_message)
-    wants_notification = any(
-        word in user_message for word in ("通知", "发给", "发到", "发送", "邮件", "群")
+    wants_trend = any(
+        word in user_message for word in ("趋势", "走势", "每日", "按天")
     )
     start_date, end_date = _resolve_period(effective_message)
     date_arguments = {
         "start_date": start_date.isoformat(),
         "end_date": end_date.isoformat(),
     }
+
+    if wants_trend:
+        result = call_tool(
+            "query_sales_trend",
+            {"start_date": start_date.isoformat(), "end_date": end_date.isoformat()},
+        )
+        if "error" in result:
+            return f"销售趋势查询未完成：{result['error']}", tool_calls
+        trend = result["trend"]
+        answer = (
+            f"{start_date.isoformat()} 至 {end_date.isoformat()} 共 "
+            f"{len(trend)} 天销售走势：销售额合计 ¥"
+            f"{sum(item['sales_amount'] for item in trend):.2f}，"
+            f"{sum(item['order_count'] for item in trend)} 笔订单。"
+        )
+        if wants_chart:
+            buckets: list[dict[str, Any]] = []
+            for offset in range(0, len(trend), 7):
+                window = trend[offset : offset + 7]
+                buckets.append(
+                    {
+                        "label": window[0]["date"][5:],
+                        "sales_amount": round(
+                            sum(item["sales_amount"] for item in window), 2
+                        ),
+                    }
+                )
+            chart = call_tool(
+                "generate_chart",
+                {
+                    "title": "每周销售额趋势"
+                    if len(trend) > 20
+                    else "每日销售额趋势",
+                    "labels": [item["label"] for item in buckets],
+                    "values": [item["sales_amount"] for item in buckets],
+                    "chart_type": "bar",
+                },
+            )
+            if "error" in chart:
+                answer += f"\n图表生成失败：{chart['error']}"
+            else:
+                answer += (
+                    "\n已生成每周销售额柱状图。"
+                    if len(trend) > 20
+                    else "\n已生成逐日销售额柱状图。"
+                )
+        if wants_notification:
+            answer = append_notification(answer)
+        return answer, tool_calls
 
     if wants_top or wants_chart:
         if wants_top:
@@ -147,16 +254,7 @@ def _demo_agent(
         else:
             chart = None
         if wants_notification:
-            channel = "email" if any(word in user_message for word in ("邮件", "邮箱")) else "wechat"
-            notification = call_tool(
-                "send_notification",
-                {
-                    "message": answer,
-                    "channel": channel,
-                },
-            )
-            if "error" not in notification:
-                answer += "\n通知内容已写入演示日志；当前不会实际发送到外部渠道。"
+            answer = append_notification(answer)
         return answer, tool_calls
 
     if "环比" in user_message and previous_user:
@@ -195,12 +293,19 @@ def _demo_agent(
 
     if any(word in effective_message for word in ("销售", "销售额", "营业额", "业绩", "订单", "收入")):
         result = call_tool("query_sales", date_arguments)
-        return (
+        average = (
+            result["sales_amount"] / result["order_count"]
+            if result["order_count"]
+            else 0
+        )
+        answer = (
             f"{start_date.isoformat()} 至 {end_date.isoformat()} 销售额为 "
             f"¥{result['sales_amount']:.2f}，共 {result['order_count']} 笔订单、"
-            f"{result['units_sold']} 件商品。",
-            tool_calls,
+            f"{result['units_sold']} 件商品，平均客单价 ¥{average:.2f}。"
         )
+        if wants_notification:
+            answer = append_notification(answer)
+        return answer, tool_calls
     return (
         "我是智能运营助手演示模式，可以查询销售额、商品排行和库存，也能生成图表或记录通知。"
         "例如：“查上周销售额”或“把上周销量最高的 3 个商品画成柱状图并发群”。",
@@ -221,13 +326,19 @@ def _parse_tool_arguments(raw_arguments: Any) -> dict[str, Any]:
 async def run_agent(
     db: Session, user_message: str, history: list[dict[str, str]]
 ) -> dict[str, Any]:
+    model_history = [
+        {"role": item["role"], "content": item["content"]}
+        for item in history[-10:]
+        if item.get("role") in {"user", "assistant"}
+        and isinstance(item.get("content"), str)
+    ]
     if not settings.llm_api_key:
-        answer, tool_calls = _demo_agent(db, user_message, history)
+        answer, tool_calls = _demo_agent(db, user_message, model_history)
         return {"answer": answer, "tool_calls": tool_calls, "mode": "demo"}
 
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        *history[-10:],
+        *model_history,
         {"role": "user", "content": user_message},
     ]
     tool_calls: list[dict[str, Any]] = []

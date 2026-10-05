@@ -5,73 +5,214 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="通过自然语言查询销售、库存、商品排行，并自动生成图表和通知记录。"
+      content="SmartOps 智能运营工作台：经营概览、商品库存和可追溯的多工具 Agent。"
     />
-    <title>智能运营助手 · SmartOps</title>
+    <title>智能运营工作台 · SmartOps</title>
     <link rel="stylesheet" href="/static/styles.css" />
   </head>
   <body>
     <main class="shell">
       <aside class="sidebar">
-        <a class="brand" href="/">
+        <button class="brand" id="brand-home" type="button" title="返回经营概览，不会清除会话">
           <span class="brand-mark">S</span>
           <span>SmartOps<span class="brand-light"> Agent</span></span>
-        </a>
-        <div class="side-copy">
-          <p class="eyebrow">OPERATIONS COPILOT</p>
-          <h1>让业务数据<br />开口说话。</h1>
-          <p class="side-description">
-            用一句话查销售、看库存、出图表。Agent 会选择合适的工具，逐步完成任务。
-          </p>
-        </div>
+        </button>
+        <button class="new-chat-button" id="new-chat-button" type="button">
+          <span aria-hidden="true">＋</span> 新建对话
+        </button>
+
+        <nav class="main-nav" aria-label="工作台">
+          <button class="nav-item active" type="button" data-view="dashboard">
+            <span class="nav-icon">◫</span> 经营概览
+          </button>
+          <button class="nav-item" type="button" data-view="assistant">
+            <span class="nav-icon">✳</span> Agent 助手
+          </button>
+          <button class="nav-item" type="button" data-view="products">
+            <span class="nav-icon">▦</span> 商品与库存
+          </button>
+        </nav>
+
+        <section class="history-section">
+          <div class="section-label">
+            <span>最近对话</span><span class="history-count" id="history-count">0</span>
+          </div>
+          <div class="history-list" id="history-list">
+            <p class="history-empty">对话会保存在这里</p>
+          </div>
+        </section>
+
         <div class="sidebar-bottom">
           <span class="status-dot"></span>
           <span id="mode-label">正在连接服务…</span>
-          <span class="side-version">DEMO · v1.0</span>
+          <span class="side-version">DEMO · v2.0</span>
         </div>
       </aside>
 
       <section class="workspace">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">WORKSPACE / GENERAL</p>
-            <h2>运营助手</h2>
+          <div class="page-heading">
+            <p class="eyebrow" id="page-eyebrow">WORKSPACE / OVERVIEW</p>
+            <h1 id="page-title">经营概览</h1>
           </div>
-          <a class="api-link" href="/docs" target="_blank" rel="noreferrer">API 文档 ↗</a>
+          <div class="topbar-actions">
+            <span class="period-label" id="period-label">近 7 天 · 演示数据</span>
+            <label class="sr-only" for="developer-docs">开发者 API 文档</label>
+            <a
+              class="api-link"
+              id="developer-docs"
+              href="/docs"
+              target="_blank"
+              rel="noreferrer"
+              title="开发者接口文档：查看 API 请求和响应，并在线测试接口"
+            >
+              <span>⌘ API 文档</span>
+              <small>接口说明 · 在线调试</small>
+            </a>
+          </div>
         </header>
 
-        <div class="chat-area" id="chat-area" aria-live="polite">
-          <div class="welcome" id="welcome">
-            <div class="welcome-icon">✳</div>
-            <p class="eyebrow">从一个问题开始</p>
-            <h3>今天想了解什么？</h3>
-            <p>试试下面的示例，或直接描述你的业务任务。</p>
-            <div class="suggestions">
-              <button type="button" data-prompt="查一下上周销售额和订单数">📈 <span>上周销售表现</span></button>
-              <button type="button" data-prompt="把上周销量最高的 3 个商品画成柱状图并发群">📊 <span>排行、画图并通知</span></button>
-              <button type="button" data-prompt="无线鼠标现在还有多少库存？">📦 <span>查询商品库存</span></button>
+        <section class="view-panel dashboard-view active" id="dashboard-view">
+          <div class="view-toolbar">
+            <div>
+              <p class="eyebrow">BUSINESS PULSE</p>
+              <h2>今天的业务，一眼掌握。</h2>
+            </div>
+            <div class="period-switch" role="group" aria-label="经营数据时间范围">
+              <button type="button" data-days="7" class="selected">近 7 天</button>
+              <button type="button" data-days="30">近 30 天</button>
+              <button type="button" data-days="90">近 90 天</button>
             </div>
           </div>
-          <div class="messages" id="messages"></div>
-        </div>
 
-        <form class="composer-wrap" id="chat-form">
-          <label class="sr-only" for="message-input">输入业务问题</label>
-          <textarea
-            id="message-input"
-            rows="1"
-            maxlength="2000"
-            placeholder="描述你的业务问题…"
-            required
-          ></textarea>
-          <div class="composer-footer">
-            <span>AI 可能出错，请核对关键业务数据。</span>
-            <button class="send-button" id="send-button" type="submit">
-              <span>发送</span><span aria-hidden="true">↗</span>
+          <div class="kpi-grid" id="kpi-grid" aria-live="polite">
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+            <div class="kpi-card skeleton"></div>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel trend-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">SALES TREND</p><h3>销售走势</h3></div>
+                <span class="panel-note">每日销售额</span>
+              </div>
+              <div class="line-chart" id="sales-trend"></div>
+            </section>
+
+            <section class="panel ranking-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">BEST SELLERS</p><h3>热销商品 TOP 5</h3></div>
+                <button class="text-button" type="button" data-view="products">查看库存 →</button>
+              </div>
+              <div class="ranking-list" id="top-products"></div>
+            </section>
+
+            <section class="panel low-stock-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">INVENTORY ALERT</p><h3>低库存提醒</h3></div>
+                <span class="threshold-chip">库存 &lt; 20</span>
+              </div>
+              <div class="low-stock-list" id="low-stock-list"></div>
+            </section>
+
+            <section class="panel notification-panel">
+              <div class="panel-heading">
+                <div><p class="eyebrow">AUDIT TRAIL</p><h3>最近通知记录</h3></div>
+                <span class="panel-note">仅写入演示日志 · 不会外发</span>
+              </div>
+              <div class="notification-list" id="notification-list"></div>
+            </section>
+          </div>
+          <p class="data-note"><span>●</span> 使用自动生成的演示订单 · 经营数据仅供功能体验</p>
+        </section>
+
+        <section class="view-panel assistant-view" id="assistant-view" hidden>
+          <div class="assistant-content" id="assistant-content">
+            <div class="welcome" id="welcome">
+              <div class="welcome-icon">✳</div>
+              <p class="eyebrow">YOUR OPERATIONS COPILOT</p>
+              <h2>一句话，把一件事办完。</h2>
+              <p class="welcome-copy">看销售、查库存、做对比；也可以让 Agent 连续查数据、生成图表和通知摘要。</p>
+              <div class="capability-strip">
+                <span>⌕ 数据查询</span><span>↗ 多工具编排</span><span>▤ 图表报告</span><span>◷ 多轮追问</span>
+              </div>
+              <h3 class="examples-heading">从一个真实业务任务开始</h3>
+              <div class="suggestions">
+                <button type="button" data-prompt="查一下上周销售额、订单数和平均客单价">
+                  <span class="suggestion-icon sales-icon">↗</span><span><b>销售表现复盘</b><small>销售额、订单和客单价</small></span><span class="suggestion-arrow">→</span>
+                </button>
+                <button type="button" data-prompt="把上周销量最高的 5 个商品画成柱状图">
+                  <span class="suggestion-icon ranking-icon">▥</span><span><b>热销商品排行</b><small>查数据并生成可视化图表</small></span><span class="suggestion-arrow">→</span>
+                </button>
+                <button type="button" data-prompt="列出库存少于 40 件的商品">
+                  <span class="suggestion-icon stock-icon">▦</span><span><b>库存风险排查</b><small>找出需要关注的低库存商品</small></span><span class="suggestion-arrow">→</span>
+                </button>
+                <button type="button" data-prompt="生成近 30 天销售趋势图">
+                  <span class="suggestion-icon trend-icon">⌁</span><span><b>销售趋势分析</b><small>按天查看经营变化</small></span><span class="suggestion-arrow">→</span>
+                </button>
+                <button type="button" data-prompt="先查无线鼠标库存，再总结成一条企业微信通知">
+                  <span class="suggestion-icon notify-icon">◎</span><span><b>查询并生成通知</b><small>组合工具完成一条业务流程</small></span><span class="suggestion-arrow">→</span>
+                </button>
+                <button type="button" data-prompt="查询上周销售额">
+                  <span class="suggestion-icon memory-icon">↻</span><span><b>连续追问示例</b><small>接着问“那环比呢”查看上下文</small></span><span class="suggestion-arrow">→</span>
+                </button>
+              </div>
+            </div>
+            <div class="messages" id="messages" aria-live="polite"></div>
+          </div>
+
+          <form class="composer-wrap" id="chat-form">
+            <label class="sr-only" for="message-input">输入业务问题</label>
+            <textarea
+              id="message-input"
+              rows="1"
+              maxlength="2000"
+              placeholder="试试：把近 30 天热销商品做成图表，并整理通知摘要…"
+              required
+            ></textarea>
+            <div class="composer-footer">
+              <span>Enter 发送 · Shift + Enter 换行 · 结果来自演示数据库</span>
+              <button class="send-button" id="send-button" type="submit">
+                <span>执行任务</span><span aria-hidden="true">↗</span>
+              </button>
+            </div>
+          </form>
+          <p class="disclaimer">通知只写入演示日志，不会实际发送到邮件或企业微信。</p>
+        </section>
+
+        <section class="view-panel products-view" id="products-view" hidden>
+          <div class="view-toolbar products-toolbar">
+            <div>
+              <p class="eyebrow">PRODUCT CATALOG</p>
+              <h2>商品与库存台账</h2>
+              <p class="toolbar-description">搜索商品、按品类筛选，快速定位低库存风险。</p>
+            </div>
+            <button class="primary-button" type="button" data-prompt="列出库存少于 40 件的商品" data-view="assistant">
+              让 Agent 检查库存 <span>↗</span>
             </button>
           </div>
-        </form>
-        <p class="disclaimer">演示数据为自动生成的模拟订单；通知功能仅写入本地日志，不会发送到外部服务。</p>
+          <div class="product-controls">
+            <label class="search-field">
+              <span aria-hidden="true">⌕</span>
+              <input id="product-search" type="search" placeholder="搜索商品名称…" maxlength="100" />
+            </label>
+            <label class="sr-only" for="category-filter">筛选商品分类</label>
+            <select id="category-filter"><option value="">全部分类</option></select>
+            <label class="low-stock-filter"><input id="low-stock-filter" type="checkbox" /> 只看低库存（&lt; 20）</label>
+            <span class="result-count" id="product-count">正在加载商品…</span>
+          </div>
+          <div class="panel table-panel">
+            <div class="product-table-wrap">
+              <table class="product-table">
+                <thead><tr><th>商品</th><th>分类</th><th>售价</th><th>当前库存</th><th>库存状态</th></tr></thead>
+                <tbody id="product-rows"><tr><td colspan="5" class="table-empty">正在读取演示商品…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <p class="data-note"><span>●</span> 共 20 个模拟商品 · 库存数据仅供功能体验</p>
+        </section>
       </section>
     </main>
     <script src="/static/app.js" defer></script>
